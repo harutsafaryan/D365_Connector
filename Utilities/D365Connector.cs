@@ -161,12 +161,6 @@ namespace D365_Connector.Utilities
             inventoryProductItem["cre2b_int_quantity"] = qty;
             inventoryProductItem["cre2b_total_amount"] = totalAmount;
 
-
-            //Entity inventoryProductItem = new Entity("cre2b_inventory_product");
-
-            //inventoryProductItem.Id = inventoryProduct.Id;
-            //inventoryProductItem["cre2b_int_quantity"] = qty;
-
             service.Update(inventoryProductItem);
         }
 
@@ -177,14 +171,43 @@ namespace D365_Connector.Utilities
             Guid productId = GetProductId(productName);
             Guid inventoryId = GetInventoryId(inventoryName);
 
-            if (productId != Guid.Empty && inventoryId != Guid.Empty)
-            {
-                inventoryProductItem["cre2b_fk_inventory"] = new EntityReference("cre2b_inventory", inventoryId);
-                inventoryProductItem["cre2b_fk_product"] = new EntityReference("cre2b_product", productId);
-                inventoryProductItem["transactioncurrencyid"] = new EntityReference("transactioncurrency", new Guid("24f919bf-3286-ec11-93b0-6045bd8e9731"));
-                inventoryProductItem["cre2b_int_quantity"] = qty;
+            Entity inventory = service.Retrieve("cre2b_inventory", inventoryId, new ColumnSet("cre2b_fk_price_list", "transactioncurrencyid"));
+            EntityReference currency = inventory.GetAttributeValue<EntityReference>("transactioncurrencyid");
 
-                service.Create(inventoryProductItem);
+            EntityReference priceListRef = inventory.GetAttributeValue<EntityReference>("cre2b_fk_price_list");
+
+            if (priceListRef != null)
+            {
+                QueryExpression query = new QueryExpression
+                {
+                    EntityName = "cre2b_price_list_item",
+                    ColumnSet = new ColumnSet("cre2b_fk_product", "transactioncurrencyid", "cre2b_mon_price_per_unit"),
+                    Criteria =
+                    {
+                        FilterOperator = LogicalOperator.And,
+                        Conditions =
+                        {
+                            new ConditionExpression("cre2b_fk_product", ConditionOperator.Equal, productId),
+                            new ConditionExpression("transactioncurrencyid", ConditionOperator.Equal, currency.Id)
+                        }
+                    }
+                };
+
+                EntityCollection priceLists = service.RetrieveMultiple(query);
+
+                if (productId != Guid.Empty && inventoryId != Guid.Empty)
+                {
+                    Money pricePerUnit = priceLists.Entities[0].GetAttributeValue<Money>("cre2b_mon_price_per_unit");
+                    EntityReference transactioncurrencyRef = priceLists.Entities[0].GetAttributeValue<EntityReference>("transactioncurrencyid");
+
+                    inventoryProductItem["cre2b_fk_inventory"] = new EntityReference("cre2b_inventory", inventoryId);
+                    inventoryProductItem["cre2b_fk_product"] = new EntityReference("cre2b_product", productId);
+                    inventoryProductItem["transactioncurrencyid"] = new EntityReference("transactioncurrency", transactioncurrencyRef.Id);
+                    inventoryProductItem["cre2b_price_per_unit"] = pricePerUnit;
+                    inventoryProductItem["cre2b_int_quantity"] = qty;
+
+                    service.Create(inventoryProductItem);
+                }
             }
         }
     }
