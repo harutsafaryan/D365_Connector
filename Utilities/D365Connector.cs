@@ -35,7 +35,7 @@ namespace D365_Connector.Utilities
             this.service = new CrmServiceClient(ConnectionString);
         }
 
-        public bool GetProductId(string name, out Guid productId)
+        public Guid GetProductId(string name)
         {
             QueryExpression query = new QueryExpression
             {
@@ -46,11 +46,7 @@ namespace D365_Connector.Utilities
                     {
                         new FilterExpression
                         {
-                            FilterOperator = LogicalOperator.And,
-                            Conditions =
-                            {
-                                new ConditionExpression("cre2b_name", ConditionOperator.Equal, name)
-                            }
+                            Conditions= {new ConditionExpression("cre2b_name", ConditionOperator.Equal, name)}
                         }
                     }
                 }
@@ -58,18 +54,12 @@ namespace D365_Connector.Utilities
 
             EntityCollection products = service.RetrieveMultiple(query);
             if (products.Entities.Count > 0)
-            {
-                productId = products.Entities[0].Id;
-                return true;
-            }
+                return products.Entities[0].Id;
             else
-            {
-                productId = Guid.NewGuid();
-                return false;
-            }
+                return Guid.Empty;
         }
 
-        public bool GetInventoryId(string name, out Guid inventoryId)
+        public Guid GetInventoryId(string name)
         {
             QueryExpression query = new QueryExpression
             {
@@ -80,10 +70,9 @@ namespace D365_Connector.Utilities
                     {
                         new FilterExpression
                         {
-                            FilterOperator = LogicalOperator.And,
-                            Conditions =
+                           Conditions =
                             {
-                                new ConditionExpression("cre2b_name", ConditionOperator.Equal, name)
+                            new ConditionExpression("cre2b_name", ConditionOperator.Equal, name)
                             }
                         }
                     }
@@ -91,25 +80,19 @@ namespace D365_Connector.Utilities
             };
 
             EntityCollection inventories = service.RetrieveMultiple(query);
-            if (inventories.Entities.Count>0)
-            {
-                inventoryId = inventories.Entities[0].Id;
-                return true;
-            }
+            if (inventories.Entities.Count > 0)
+                return inventories.Entities[0].Id;
             else
-            {
-                inventoryId = Guid.NewGuid();
-                return false;
-            }
+                return Guid.Empty;
         }
 
         public InventoryProduct GetProductQty(string inventoryName, string productName)
         {
-            Guid productId;
-            Guid inventoryId;
+            Guid productId = GetProductId(productName);
+            Guid inventoryId = GetInventoryId(inventoryName);
 
-            bool isProductExist = GetProductId(productName, out productId);
-            bool isInventoryExist = GetInventoryId(inventoryName, out inventoryId);
+            //bool isProductExist = GetProductId(productName, out productId);
+            //bool isInventoryExist = GetInventoryId(inventoryName, out inventoryId);
 
             QueryExpression query = new QueryExpression
             {
@@ -151,6 +134,7 @@ namespace D365_Connector.Utilities
                 ColumnSet = new ColumnSet("cre2b_fk_inventory", "cre2b_fk_product", "cre2b_int_quantity")
             };
 
+            bool contains = false;
             EntityCollection inventoryProducts = service.RetrieveMultiple(query);
             foreach (Entity item in inventoryProducts.Entities)
             {
@@ -159,18 +143,29 @@ namespace D365_Connector.Utilities
                 if (inventoryLookup != null && inventoryLookup.Name == inventoryName)
                 {
                     EntityReference productLookup = item.GetAttributeValue<EntityReference>("cre2b_fk_product");
-                    return productName == productLookup.Name;
+                    if (productName == productLookup.Name)
+                        contains = true;
                 }
             }
-            return false;
+            return contains;
         }
 
         public void SetProductQty(InventoryProduct inventoryProduct, int qty)
         {
-            Entity inventoryProductItem = new Entity("cre2b_inventory_product");
 
-            inventoryProductItem.Id = inventoryProduct.Id;
+            Entity inventoryProductItem = service.Retrieve("cre2b_inventory_product", inventoryProduct.Id, new ColumnSet("cre2b_price_per_unit", "cre2b_int_quantity", "cre2b_total_amount"));
+
+            Money price = inventoryProductItem.GetAttributeValue<Money>("cre2b_price_per_unit");
+            Money totalAmount = new Money(price.Value * qty);
+
             inventoryProductItem["cre2b_int_quantity"] = qty;
+            inventoryProductItem["cre2b_total_amount"] = totalAmount;
+
+
+            //Entity inventoryProductItem = new Entity("cre2b_inventory_product");
+
+            //inventoryProductItem.Id = inventoryProduct.Id;
+            //inventoryProductItem["cre2b_int_quantity"] = qty;
 
             service.Update(inventoryProductItem);
         }
@@ -179,18 +174,18 @@ namespace D365_Connector.Utilities
         {
             Entity inventoryProductItem = new Entity("cre2b_inventory_product");
 
-            Guid productId;
-            Guid inventoryId;
+            Guid productId = GetProductId(productName);
+            Guid inventoryId = GetInventoryId(inventoryName);
 
-            bool isProductExist = GetProductId(productName, out productId);
-            bool isInventoryExist = GetInventoryId(inventoryName, out inventoryId);
+            if (productId != Guid.Empty && inventoryId != Guid.Empty)
+            {
+                inventoryProductItem["cre2b_fk_inventory"] = new EntityReference("cre2b_inventory", inventoryId);
+                inventoryProductItem["cre2b_fk_product"] = new EntityReference("cre2b_product", productId);
+                inventoryProductItem["transactioncurrencyid"] = new EntityReference("transactioncurrency", new Guid("24f919bf-3286-ec11-93b0-6045bd8e9731"));
+                inventoryProductItem["cre2b_int_quantity"] = qty;
 
-            inventoryProductItem["cre2b_fk_inventory"] = new EntityReference("cre2b_inventory", inventoryId);
-            inventoryProductItem["cre2b_fk_product"] = new EntityReference("cre2b_product", productId);
-            inventoryProductItem["transactioncurrencyid"] = new EntityReference("transactioncurrency", new Guid("24f919bf-3286-ec11-93b0-6045bd8e9731"));
-            inventoryProductItem["cre2b_int_quantity"] = qty;
-
-            service.Create(inventoryProductItem);
+                service.Create(inventoryProductItem);
+            }
         }
     }
 }

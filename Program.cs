@@ -14,7 +14,7 @@ namespace D365_Connector
         {
             try
             {
-                D365Connector d365Connector = new D365Connector("HarutSafaryan@ARM300LLC.onmicrosoft.com", "Taylor2005%", "https://orgc513a061.crm4.dynamics.com/main.aspx?app=d365default&forceUCI=1&pagetype=search&searchText=");
+                D365Connector d365Connector = new D365Connector("HarutSafaryan@PROFLLC796.onmicrosoft.com", "Aa_%5842bnm_", "https://org395b328f.crm4.dynamics.com/");
                 Console.WriteLine("Succesfully conected to D365");
 
                 Console.Write("Inventory Name: ");
@@ -52,10 +52,12 @@ namespace D365_Connector
                         else
                         {
                             Console.WriteLine("it’s not possible");
+                            Console.ReadLine();
                         }
                         break;
                     default:
                         Console.WriteLine("Wrong operation was input");
+                        Console.ReadLine();
                         break;
 
                 }
