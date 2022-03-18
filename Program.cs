@@ -15,7 +15,7 @@ namespace D365_Connector
             try
             {
                 D365Connector d365Connector = new D365Connector("HarutSafaryan@PROFLLC796.onmicrosoft.com", "Aa_%5842bnm_", "https://org395b328f.crm4.dynamics.com/");
-                Console.WriteLine("Succesfully conected to D365");
+                Console.WriteLine("Succesfully concected to D365");
 
                 Console.Write("Inventory Name: ");
                 string inventoryName = Console.ReadLine();
