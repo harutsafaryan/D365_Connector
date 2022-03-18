@@ -35,6 +35,7 @@ namespace D365_Connector.Utilities
             this.service = new CrmServiceClient(ConnectionString);
         }
 
+        
         public Guid GetProductId(string name)
         {
             QueryExpression query = new QueryExpression
@@ -90,9 +91,6 @@ namespace D365_Connector.Utilities
         {
             Guid productId = GetProductId(productName);
             Guid inventoryId = GetInventoryId(inventoryName);
-
-            //bool isProductExist = GetProductId(productName, out productId);
-            //bool isInventoryExist = GetInventoryId(inventoryName, out inventoryId);
 
             QueryExpression query = new QueryExpression
             {
@@ -164,6 +162,12 @@ namespace D365_Connector.Utilities
             service.Update(inventoryProductItem);
         }
 
+        /// <summary>
+        /// Create Product for given Inventory with given quantity
+        /// </summary>
+        /// <param name="inventoryName">Inventory name</param>
+        /// <param name="productName">Product name</param>
+        /// <param name="qty">Quantity</param>
         public void CreateInventoryProduct(string inventoryName, string productName, int qty)
         {
             Entity inventoryProductItem = new Entity("cre2b_inventory_product");
